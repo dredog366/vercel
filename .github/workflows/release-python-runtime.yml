@@ -1,10 +1,6 @@
 name: Release Python Runtime Package
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'python/vercel-runtime/**'
   workflow_dispatch:
     inputs:
       force:
@@ -78,7 +74,7 @@ jobs:
           python-version-file: 'pyproject.toml'
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@eac588ad8def6316056a12d4907a9d4d84ff7a3b # v7.3.0
         with:
           version: '0.9.22'
 
