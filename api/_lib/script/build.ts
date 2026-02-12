@@ -101,7 +101,7 @@ async function main() {
 
   // Copy Python wheels to tarballs, preserving the original filename
   // (uv requires valid wheel tags in the filename for URL installs).
-  // Write a well-known sidecar .txt with full .whl name.
+  // Write a well-known sidecar .json with full .whl name.
   const pythonDir = join(repoRoot, 'python');
   try {
     const pythonPackages = await fs.readdir(pythonDir, { withFileTypes: true });
@@ -124,8 +124,8 @@ async function main() {
           join(tarballsDir, wheelFile)
         );
         await fs.writeFile(
-          join(tarballsDir, `${entry.name}-wheel.txt`),
-          wheelFile
+          join(tarballsDir, `${entry.name}-wheel.json`),
+          JSON.stringify({ filename: wheelFile })
         );
         console.log(`Copied Python wheel ${wheelFile} to tarballs/`);
       }
