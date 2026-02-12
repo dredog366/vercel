@@ -100,23 +100,18 @@ async function buildPythonWheel() {
       }
     }
 
-    // Count all commits that touch this package (= devN)
-    let devN: number;
-    try {
-      const { stdout } = await execa('git', [
-        'rev-list',
-        '--count',
-        'HEAD',
-        '--',
-        pkgPath,
-      ]);
-      devN = Number(stdout.trim()) || 0;
-    } catch {
-      devN = 0;
-    }
-
     const sha = (await getSha()).trim();
+    let timestamp: number;
+    try {
+      const { stdout } = await execa('git', ['log', '-1', '--format=%ct'], {
+        env: { ...process.env, LC_ALL: 'C', TZ: 'UTC' },
+      });
+      timestamp = Number(stdout.trim()) || 0;
+    } catch {
+      timestamp = 0;
+    }
     const original = await fs.readFile(pyprojectPath, 'utf8');
+    // e.g. 0.4.0 -> 0.5.0.dev1739371200+d496c36
     const devVersion = original.replace(
       /^(version\s*=\s*")(\d+)\.(\d+)\.(\d+)(")/m,
       (
@@ -126,7 +121,7 @@ async function buildPythonWheel() {
         minor: string,
         _patch: string,
         post: string
-      ) => `${pre}${major}.${Number(minor) + 1}.0.dev${devN}+${sha}${post}`
+      ) => `${pre}${major}.${Number(minor) + 1}.0.dev${timestamp}+${sha}${post}`
     );
     await fs.writeFile(pyprojectPath, devVersion);
 
