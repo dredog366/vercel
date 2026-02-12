@@ -40,7 +40,9 @@ try {
   previousVersion = '';
 }
 
-if (currentVersion === previousVersion) {
+const force = process.argv.includes('--force');
+
+if (currentVersion === previousVersion && !force) {
   console.log(
     `Python vercel-runtime version unchanged (${currentVersion}), skipping PyPI publication.`
   );
