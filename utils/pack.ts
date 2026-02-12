@@ -126,7 +126,7 @@ async function buildPythonWheel() {
     await fs.writeFile(pyprojectPath, devVersion);
 
     console.log(
-      `Building Python runtime wheel (dev${devN}+${sha}, ${lastTag || 'no prior tag'})...`
+      `Building Python runtime wheel (dev${timestamp}+${sha}, ${lastTag || 'no prior tag'})...`
     );
 
     try {
@@ -139,7 +139,8 @@ async function buildPythonWheel() {
       await fs.writeFile(pyprojectPath, original);
     }
   } catch (err) {
-    console.log('Failed to build Python runtime wheel (non-fatal):', err);
+    console.error('Failed to build Python runtime wheel:', err);
+    throw err;
   }
 }
 
