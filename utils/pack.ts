@@ -100,17 +100,19 @@ async function buildPythonWheel() {
       }
     }
 
-    // Count commits since last tag that touch this package (= devN)
-    let devN = 0;
-    if (lastTag) {
+    // Count all commits that touch this package (= devN)
+    let devN: number;
+    try {
       const { stdout } = await execa('git', [
         'rev-list',
         '--count',
-        `${lastTag}..HEAD`,
+        'HEAD',
         '--',
         pkgPath,
       ]);
-      devN = Number(stdout.trim());
+      devN = Number(stdout.trim()) || 0;
+    } catch {
+      devN = 0;
     }
 
     const sha = (await getSha()).trim();
