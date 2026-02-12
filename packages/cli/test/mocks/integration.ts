@@ -227,6 +227,8 @@ const integrations: Record<string, Integration> = {
     id: 'acme',
     name: 'Acme Integration',
     slug: 'acme',
+    eulaDocUri: 'https://example.com/eula',
+    privacyDocUri: 'https://example.com/privacy',
     products: [
       {
         id: 'acme-product',
@@ -242,6 +244,8 @@ const integrations: Record<string, Integration> = {
     id: 'acme-two-products',
     name: 'Acme Integration Two Products',
     slug: 'acme-two-products',
+    eulaDocUri: 'https://example.com/eula',
+    privacyDocUri: 'https://example.com/privacy',
     products: [
       {
         id: 'acme-product-a',
@@ -521,6 +525,20 @@ const integrationPlans: Record<string, unknown> = {
     ],
   },
   'acme-multi': {
+    plans: [
+      {
+        id: 'pro',
+        type: 'subscription',
+        name: 'Pro Plan',
+        scope: 'installation',
+        description: 'Pro Plan',
+        paymentMethodRequired: true,
+        details: [],
+        highlightedDetails: [],
+      },
+    ],
+  },
+  'acme-two-products': {
     plans: [
       {
         id: 'pro',
@@ -1206,6 +1224,7 @@ export function useIntegration({
         ? [
             {
               id: `${integrationIdOrSlug}-install`,
+              integrationId: integrationIdOrSlug,
               installationType: 'marketplace',
               ownerId,
             },
@@ -1251,12 +1270,24 @@ export function useIntegration({
       res.end();
     }
   );
+
+  client.scenario.post(
+    '/v2/integrations/integration/:integrationId/marketplace/install',
+    (req, res) => {
+      res.json({
+        id: `${req.params.integrationId}-new-install`,
+      });
+    }
+  );
 }
 
 export function useAutoProvision(opts?: {
   responseKey?: keyof typeof autoProvisionResponses;
   secondResponseKey?: keyof typeof autoProvisionResponses;
+  withInstallation?: boolean;
+  ownerId?: string;
 }) {
+  const withInstallation = opts?.withInstallation ?? true;
   let callCount = 0;
   const storeId = 'resource_123';
   const requestBodies: unknown[] = [];
@@ -1277,6 +1308,28 @@ export function useAutoProvision(opts?: {
       res.json(integration);
     }
   );
+
+  // Installations endpoint (needed for upfront install check)
+  client.scenario.get('/:version/integrations/configurations', (req, res) => {
+    const { installationType, integrationIdOrSlug } = req.query;
+    if (installationType !== 'marketplace') {
+      res.status(500);
+      res.end();
+      return;
+    }
+    res.json(
+      withInstallation
+        ? [
+            {
+              id: 'acme-install',
+              integrationId: integrationIdOrSlug,
+              installationType: 'marketplace',
+              ownerId: opts?.ownerId ?? 'team_dummy',
+            },
+          ]
+        : []
+    );
+  });
 
   // Auto-provision endpoint
   client.scenario.post(

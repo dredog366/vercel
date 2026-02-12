@@ -273,18 +273,23 @@ describe('integration add (auto-provision)', () => {
 
   describe('policy acceptance flow', () => {
     beforeEach(() => {
-      // First call returns 'install' (policies required), second call returns 'provisioned'
+      // No installation — triggers upfront term prompts
       useAutoProvision({
-        responseKey: 'install',
-        secondResponseKey: 'provisioned',
+        responseKey: 'provisioned',
+        withInstallation: false,
       });
     });
 
-    it('should prompt for policy acceptance and retry', async () => {
+    it('should prompt for terms upfront and provision', async () => {
       client.setArgv('integration', 'add', 'acme');
       const exitCodePromise = integrationCommand(client);
 
-      // Auto-generated name, server fills metadata defaults — no prompts
+      // 3-term prompt sequence (upfront, before provisioning)
+      await expect(client.stderr).toOutput(
+        'Accept Vercel Marketplace End User Addendum?'
+      );
+      client.stdin.write('y\n');
+
       await expect(client.stderr).toOutput('Accept privacy policy?');
       client.stdin.write('y\n');
 
@@ -299,11 +304,32 @@ describe('integration add (auto-provision)', () => {
       expect(exitCode).toEqual(0);
     });
 
+    it('should exit with code 1 when addendum declined', async () => {
+      client.setArgv('integration', 'add', 'acme');
+      const exitCodePromise = integrationCommand(client);
+
+      await expect(client.stderr).toOutput(
+        'Accept Vercel Marketplace End User Addendum?'
+      );
+      client.stdin.write('n\n');
+
+      await expect(client.stderr).toOutput(
+        'Vercel Marketplace End User Addendum must be accepted to continue.'
+      );
+
+      const exitCode = await exitCodePromise;
+      expect(exitCode).toEqual(1);
+    });
+
     it('should exit with code 1 when privacy policy declined', async () => {
       client.setArgv('integration', 'add', 'acme');
       const exitCodePromise = integrationCommand(client);
 
-      // Auto-generated name, server fills metadata defaults — no prompts
+      await expect(client.stderr).toOutput(
+        'Accept Vercel Marketplace End User Addendum?'
+      );
+      client.stdin.write('y\n');
+
       await expect(client.stderr).toOutput('Accept privacy policy?');
       client.stdin.write('n\n');
 
@@ -319,7 +345,11 @@ describe('integration add (auto-provision)', () => {
       client.setArgv('integration', 'add', 'acme');
       const exitCodePromise = integrationCommand(client);
 
-      // Auto-generated name, server fills metadata defaults — no prompts
+      await expect(client.stderr).toOutput(
+        'Accept Vercel Marketplace End User Addendum?'
+      );
+      client.stdin.write('y\n');
+
       await expect(client.stderr).toOutput('Accept privacy policy?');
       client.stdin.write('y\n');
 
@@ -332,6 +362,30 @@ describe('integration add (auto-provision)', () => {
 
       const exitCode = await exitCodePromise;
       expect(exitCode).toEqual(1);
+    });
+
+    it('should only prompt for addendum when integration has no privacy or EULA', async () => {
+      useAutoProvision({
+        responseKey: 'provisioned',
+        withInstallation: false,
+      });
+
+      client.setArgv('integration', 'add', 'aws-apg');
+      const exitCodePromise = integrationCommand(client);
+
+      // Only the addendum prompt should appear (aws-apg has no eulaDocUri/privacyDocUri)
+      await expect(client.stderr).toOutput(
+        'Accept Vercel Marketplace End User Addendum?'
+      );
+      client.stdin.write('y\n');
+
+      // Should go straight to provisioning without privacy/EULA prompts
+      await expect(client.stderr).toOutput(
+        'Aurora Postgres successfully provisioned'
+      );
+
+      const exitCode = await exitCodePromise;
+      expect(exitCode).toEqual(0);
     });
   });
 
@@ -467,11 +521,11 @@ describe('integration add (auto-provision)', () => {
       );
     });
 
-    it('should forward --metadata to browser URL after policy retry falls back', async () => {
-      // First call returns 'install' (policies required), second returns 'metadata' (still needs web)
+    it('should forward --metadata to browser URL after term acceptance falls back', async () => {
+      // No installation, auto-provision returns metadata fallback
       useAutoProvision({
-        responseKey: 'install',
-        secondResponseKey: 'metadata',
+        responseKey: 'metadata',
+        withInstallation: false,
       });
 
       client.setArgv(
@@ -483,14 +537,17 @@ describe('integration add (auto-provision)', () => {
       );
       const exitCodePromise = integrationCommand(client);
 
-      // Accept policies
+      // Upfront term prompts
+      await expect(client.stderr).toOutput(
+        'Accept Vercel Marketplace End User Addendum?'
+      );
+      client.stdin.write('y\n');
       await expect(client.stderr).toOutput('Accept privacy policy?');
       client.stdin.write('y\n');
-
       await expect(client.stderr).toOutput('Accept terms of service?');
       client.stdin.write('y\n');
 
-      // After retry, still falls back to browser
+      // After provisioning attempt, falls back to browser
       await expect(client.stderr).toOutput(
         'Additional setup required. Opening browser...'
       );
@@ -505,18 +562,22 @@ describe('integration add (auto-provision)', () => {
       expect(parsed.searchParams.get('source')).toEqual('cli');
     });
 
-    it('should not include metadata in URL after policy retry falls back without --metadata', async () => {
+    it('should not include metadata in URL after term acceptance falls back without --metadata', async () => {
       useAutoProvision({
-        responseKey: 'install',
-        secondResponseKey: 'metadata',
+        responseKey: 'metadata',
+        withInstallation: false,
       });
 
       client.setArgv('integration', 'add', 'acme');
       const exitCodePromise = integrationCommand(client);
 
+      // Upfront term prompts
+      await expect(client.stderr).toOutput(
+        'Accept Vercel Marketplace End User Addendum?'
+      );
+      client.stdin.write('y\n');
       await expect(client.stderr).toOutput('Accept privacy policy?');
       client.stdin.write('y\n');
-
       await expect(client.stderr).toOutput('Accept terms of service?');
       client.stdin.write('y\n');
 
@@ -872,18 +933,22 @@ describe('integration add (auto-provision)', () => {
       });
     });
 
-    it('should include billingPlanId in retry request after policy acceptance', async () => {
+    it('should include billingPlanId and acceptedPolicies after term acceptance', async () => {
       const { requestBodies } = useAutoProvision({
-        responseKey: 'install',
-        secondResponseKey: 'provisioned',
+        responseKey: 'provisioned',
+        withInstallation: false,
       });
 
       client.setArgv('integration', 'add', 'acme', '--plan', 'pro');
       const exitCodePromise = integrationCommand(client);
 
+      // Upfront term prompts
+      await expect(client.stderr).toOutput(
+        'Accept Vercel Marketplace End User Addendum?'
+      );
+      client.stdin.write('y\n');
       await expect(client.stderr).toOutput('Accept privacy policy?');
       client.stdin.write('y\n');
-
       await expect(client.stderr).toOutput('Accept terms of service?');
       client.stdin.write('y\n');
 
@@ -893,9 +958,15 @@ describe('integration add (auto-provision)', () => {
 
       const exitCode = await exitCodePromise;
       expect(exitCode).toEqual(0);
-      // Both initial and retry requests should include billingPlanId
-      expect(requestBodies[0]).toMatchObject({ billingPlanId: 'pro' });
-      expect(requestBodies[1]).toMatchObject({ billingPlanId: 'pro' });
+      // Single request with billingPlanId and accepted policies
+      expect(requestBodies).toHaveLength(1);
+      expect(requestBodies[0]).toMatchObject({
+        billingPlanId: 'pro',
+        acceptedPolicies: {
+          privacy: expect.any(String),
+          eula: expect.any(String),
+        },
+      });
     });
   });
 

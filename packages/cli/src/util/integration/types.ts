@@ -83,6 +83,8 @@ export interface Integration {
   slug: string;
   name: string;
   products?: IntegrationProduct[];
+  eulaDocUri?: string;
+  privacyDocUri?: string;
 }
 
 export interface IntegrationInstallation {
@@ -156,7 +158,7 @@ export interface MarketplaceBillingAuthorizationState {
 
 // Auto-provision types
 
-// AcceptedPolicies: key = policy name ('privacy' | 'eula'), value = ISO timestamp
+// AcceptedPolicies: key = policy name ('toc' | 'privacy' | 'eula'), value = ISO timestamp
 export type AcceptedPolicies = Record<string, string>;
 
 export interface AutoProvisionIntegration {
