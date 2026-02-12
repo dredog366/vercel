@@ -68,7 +68,7 @@ jobs:
                 message += 'A Python runtime wheel was also built for this PR.\n';
                 message += 'To use in your Python project builds, also set this environment variable:\n\n';
                 message += '```\n';
-                message += `VERCEL_RUNTIME_PYTHON=vercel-runtime @ ${wheelUrl}\n`;
+                message += `VERCEL_RUNTIME_PYTHON="vercel-runtime@${wheelUrl}\n"`;
                 message += '```\n';
               }
             } catch {
